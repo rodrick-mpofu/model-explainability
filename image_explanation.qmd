@@ -1,0 +1,74 @@
+
+```{r}
+library(shiny)
+library(reticulate)
+library(png)
+```
+
+```{r}
+# Set the correct Python path
+use_python("C:/Users/rodri/AppData/Local/Programs/Python/Python39/python.exe")
+```
+
+
+```{r}
+# Define UI
+ui <- fluidPage(
+  titlePanel("Image Upload and SHAP Explanations"),
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("file", "Upload Image", accept = c("image/png", "image/jpeg")),
+      actionButton("analyze", "Analyze Image")
+    ),
+    mainPanel(
+      imageOutput("uploaded_image"),
+      plotOutput("shap_plot"),
+      textOutput("predicted_label")  # Output for the predicted label
+    )
+  )
+)
+```
+
+
+```{r}
+# Define server logic
+server <- function(input, output, session) {
+  
+  observeEvent(input$analyze, {
+    req(input$file)
+    
+    # Call the Python script to process the image and get SHAP explanations
+    source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/python_script.py")
+    
+    # Call the Python function generate_shap_explanations()
+    results <- generate_shap_explanations(input$file$datapath, model)
+    
+    # Retrieve the SHAP heatmap and predicted label from the results
+    heatmap <- results[[1]]  # First element is the heatmap
+    predicted_label <- results[[2]]  # Second element is the predicted label
+    
+    # Display the uploaded image
+    output$uploaded_image <- renderImage({
+      list(src = input$file$datapath, alt = "Uploaded Image")
+    }, deleteFile = FALSE)
+    
+    # Display the SHAP heatmap (assuming heatmap is saved as 'output_shap.png')
+    output$shap_plot <- renderPlot({
+      img <- readPNG("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/output_shap.png")
+      plot(as.raster(img))
+    })
+    
+    # Display the predicted class label
+    output$predicted_label <- renderText({
+      paste("Predicted Label:", predicted_label)
+    })
+  })
+}
+```
+
+
+```{r}
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```

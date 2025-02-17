@@ -1,0 +1,460 @@
+```{r}
+library(shiny)
+library(shinydashboard)
+library(reticulate)
+library(png)
+library(shinythemes)
+library(shinycssloaders)
+```
+
+
+```{r}
+# Set Python path
+use_python("C:/Users/rodri/AppData/Local/Programs/Python/Python39/python.exe")
+```
+
+
+```{r}
+# # Define UI
+# ui <- fluidPage(
+#   theme = shinytheme("superhero"),
+#   titlePanel("Object Recognition App"),
+#   
+#   sidebarLayout(
+#     sidebarPanel(
+#       fileInput("file", "Upload image", accept = c("image/png", "image/jpeg")),
+#       sliderInput("confidence", "Confidence threshold", min = 0, max = 1, value = 0.5),
+#       actionButton("submit", "Analyze Image", class = "btn-primary")
+#     ),
+#     
+#     mainPanel(
+#       fluidRow(
+#         # Two-column layout for better alignment of image outputs
+#         column(
+#           width = 6,
+#           h4("Original Image:"),
+#           imageOutput("uploaded_image", height = "224px", width = "224px")
+#         ),
+#         
+#         column(
+#           width = 6,
+#           h4("Grad-CAM Output:"),
+#           plotOutput("gradcam_plot", height = "224px", width = "224px")
+#         )
+#       ),
+#       
+#       fluidRow(
+#         # Display predicted label and confidence score using wellPanel for cleaner layout
+#         column(
+#           width = 10,
+#           wellPanel(
+#             h4("Prediction Results:"),
+#             h5("Predicted Category:"),
+#             textOutput("predicted_label"),
+#             h5("Confidence Score:"),
+#             textOutput("confidence_score")
+#           )
+#         )
+#       )
+#     )
+#   )
+# )
+
+```
+
+
+
+```{r}
+# Define UI
+ui <- fluidPage(
+  titlePanel("Object Recognition App"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      # Upload input
+      fileInput("file", "Upload an Image", accept = c("image/png", "image/jpeg")),
+      
+      # Confidence threshold slider
+      sliderInput("confidence", "Confidence Threshold", min = 0, max = 1, value = 0.5),
+      
+      # Action button for analysis
+      actionButton("submit", "Analyze Image", class = "btn-primary")
+    ),
+    
+    mainPanel(
+      # Use tabsetPanel to create two tabs: one for Original Image, one for Prediction Results
+      tabsetPanel(
+        # First tab for the original image
+        tabPanel("Original Image", 
+                 wellPanel(
+                   h4("Original Image:"),
+                   # Add spinner for loading status
+                   withSpinner(imageOutput("uploaded_image", height = "400px", width = "400px"))
+                 )
+        ),
+        
+        # Second tab for prediction results
+        tabPanel("Prediction Results", 
+                 wellPanel(
+                   h3("Prediction Results"),
+                   # Multiple predictions and Grad-CAM outputs
+                   uiOutput("predicted_results")
+                 )
+        ),
+        
+        # Add new "How to Use" tab
+        tabPanel(
+          "How to Use",
+          wellPanel(
+            h3("Instructions: How to Use the App"),
+            p("This application allows users to upload an image and get predictions of the object's category using a pre-trained neural network."),
+            
+            h4("Steps to Use the Application:"),
+            tags$ol(
+              tags$li("Upload an image by clicking on the 'Browse' button in the 'Original Image' tab."),
+              tags$li("Adjust the confidence threshold using the slider. This allows you to filter out predictions that are below a certain confidence score."),
+              tags$li("Click on the 'Analyze Image' button to start the prediction process."),
+              tags$li("The results will be displayed in the 'Prediction Results' tab, along with Grad-CAM visualizations that highlight which parts of the image contributed to the prediction.")
+            ),
+            
+            h4("Notes:"),
+            tags$ul(
+              tags$li("The model used for this application is VGG16, pre-trained on the ImageNet dataset."),
+              tags$li("The confidence threshold slider helps in refining the displayed predictions based on confidence scores."),
+              tags$li("Ensure your image is in .png or .jpeg format before uploading.")
+            )
+          )
+        ),
+        
+        # How Grad-CAM Works Tab
+        tabPanel(
+          "How Grad-CAM Works",
+          mainPanel(
+            h3("Understanding Grad-CAM (Gradient-weighted Class Activation Mapping)"),
+            
+            p("Grad-CAM is a technique used to visualize and interpret the decisions made by convolutional neural networks (CNNs), 
+               particularly in image classification tasks. CNNs are highly effective in extracting features from images and making predictions, 
+               but they are often seen as 'black boxes' because it's difficult to understand what parts of an image influenced a specific prediction."),
+            
+            h4("Key Steps of Grad-CAM:"),
+            tags$ol(
+              tags$li("Input Image and Model Prediction: The image is passed through the CNN model, and a prediction is made for different classes."),
+              tags$li("Choosing the Last Convolutional Layer: Grad-CAM operates on the feature maps of the last convolutional layer, which retains spatial information about the image. This layer's activations help identify 'where' in the image certain patterns or features were detected."),
+              tags$li("Computing Gradients:Grad-CAM computes the gradient of the predicted class score with respect to the feature maps of the last convolutional layer. This gradient shows how changes in the feature maps affect the score for the predicted class. In other words, it highlights the sensitivity of the prediction to each feature in the feature map."),
+              tags$li("Global Average Pooling of Gradients: The gradients are pooled (averaged) across all spatial locations in the feature maps to get a single weight for each feature map. This weight represents the global importance of each feature map in contributing to the prediction for the selected class. The pooled gradients serve as importance weights, effectively highlighting which features in the image (detected by different feature maps) are most influential in determining the predicted class."),
+              tags$li("Generating the Heatmap: Each feature map is multiplied by its corresponding gradient-based weight, which reflects the importance of that feature map for the specific class prediction. This step weights each feature map based on its contribution to the class score. Here, the gradients serve as a measure of importance because they indicate how much each feature map impacts the prediction. The result is a heatmap that emphasizes the areas in the image that most strongly support the model's decision for the class in question."),
+              tags$li("Overlaying the Heatmap: The heatmap is resized to match the original image and is superimposed on the image to show the regions that most influenced the prediction. The brighter areas in the heatmap indicate the regions where the model focused to make its classification.")
+            ),
+            
+            h4("Why Grad-CAM is Important:"),
+            tags$ul(
+              tags$li("Model Interpretability: Grad-CAM provides insight into the decision-making process of a neural network, especially in cases where model transparency is critical."),
+              tags$li("Debugging Models: Grad-CAM helps identify when a model is focusing on irrelevant parts of the image, revealing possible model issues."),
+              tags$li("Trust and Transparency: This technique allows users to better understand the model's decisions, enhancing trust in its predictions.")
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+```
+
+
+
+# ```{r}
+# # Define server logic
+# server <- function(input, output, session) {
+#   
+#   observeEvent(input$submit, {
+#     req(input$file)
+#     
+#     # Call the Python script to process the image and get Grad-CAM results
+#     source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script
+#     
+#     # Call the Python function generate_gradcam()
+#     results <- generate_gradcam(input$file$datapath, model)
+#     
+#     # Display the uploaded image in the first column
+#     output$uploaded_image <- renderImage({
+#       list(src = input$file$datapath, alt = "Uploaded Image")
+#     }, deleteFile = FALSE)
+#     
+#     # Display the Grad-CAM heatmap in the second column
+#     output$gradcam_plot <- renderPlot({
+#       img <- readPNG("output_gradcam.png")
+#       plot(as.raster(img))
+#     })
+#     
+#     # Display the predicted label and confidence score
+#     output$predicted_label <- renderText({
+#       results$predicted_label
+#     })
+#     
+#     output$confidence_score <- renderText({
+#       paste(round(results$confidence_score * 100, 2), "%")
+#     })
+#   })
+# }
+# ```
+
+# ```{r}
+# # Define server logic (as before)
+# server <- function(input, output, session) {
+#   
+#   observeEvent(input$submit, {
+#     req(input$file)
+#     
+#     # Call the Python script to process the image and get Grad-CAM results
+#     source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script
+#     
+#     # Call the Python function generate_gradcam()
+#     results <- generate_gradcam(input$file$datapath, model)
+#     
+#     # Display the uploaded image
+#     output$uploaded_image <- renderImage({
+#       list(src = "original_resized.png", alt = "Uploaded Image")
+#     }, deleteFile = FALSE)
+#     
+#     # Display the Grad-CAM heatmap
+#     output$gradcam_plot <- renderPlot({
+#       img <- readPNG("gradcam_output.png")
+#       plot(as.raster(img))
+#     })
+#     
+#     # Display the predicted label and confidence score
+#     output$predicted_label <- renderText({
+#       results$predicted_label
+#     })
+#     
+#     output$confidence_score <- renderText({
+#       paste(round(results$confidence_score * 100, 2), "%")
+#     })
+#   })
+# }
+# ```
+
+```{r}
+# # Define server logic
+# server <- function(input, output, session) {
+#   
+#   observeEvent(input$submit, {
+#     req(input$file)
+#     
+#     # Call the Python script to process the image and get Grad-CAM results
+#     source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script
+#     
+#     # Call the Python function generate_gradcam()
+#     results <- generate_gradcam(input$file$datapath, model)
+#     
+#     # Check if confidence score is above the threshold
+#     threshold <- input$confidence
+#     
+#     # Display the uploaded image
+#     output$uploaded_image <- renderImage({
+#       list(src = "original_resized.png", alt = "Uploaded Image")
+#     }, deleteFile = FALSE)
+#     
+#     # Display the Grad-CAM heatmap
+#     output$gradcam_plot <- renderPlot({
+#       img <- readPNG("gradcam_output.png")
+#       plot(as.raster(img))
+#     })
+#     
+#     # Display the predicted label and confidence score
+#     output$predicted_label <- renderText({
+#       if (results$confidence_score >= threshold) {
+#         results$predicted_label
+#       } else {
+#         "Prediction confidence below threshold"
+#       }
+#     })
+#     
+#     output$confidence_score <- renderText({
+#       if (results$confidence_score >= threshold) {
+#         paste(round(results$confidence_score * 100, 2), "%")
+#       } else {
+#         paste("Confidence:", round(results$confidence_score * 100, 2), "% - Below threshold")
+#       }
+#     })
+#   })
+# }
+
+```
+
+<!-- ```{r} -->
+<!-- # Define server logic -->
+<!-- server <- function(input, output, session) { -->
+
+<!--   observeEvent(input$submit, { -->
+<!--     req(input$file) -->
+
+<!--     # Source the Python script -->
+<!--     source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script -->
+
+<!--     # Call the Python function with the selected confidence threshold -->
+<!--     results <- generate_gradcam(input$file$datapath, model, top_n=5, confidence_threshold=input$confidence) -->
+
+<!--     # Dynamically render multiple predictions -->
+<!--     output$predicted_results <- renderUI({ -->
+<!--       lapply(results, function(result) { -->
+<!--         tagList( -->
+<!--           h4(paste("Predicted Label:", result$label)), -->
+<!--           h5(paste("Confidence:", round(result$confidence * 100, 2), "%")), -->
+<!--           plotOutput(paste("gradcam_plot_", result$label))  # Grad-CAM for each prediction -->
+<!--         ) -->
+<!--       }) -->
+<!--     }) -->
+<!--   }) -->
+<!-- } -->
+
+<!-- ``` -->
+
+
+```{r}
+# Define server logic
+server <- function(input, output, session) {
+
+  observeEvent(input$submit, {
+    req(input$file)
+
+    # Save the uploaded file to www folder with a fixed name for consistency
+    original_image_path <- file.path("www", "original_resized.png")
+    file.copy(input$file$datapath, original_image_path, overwrite = TRUE)
+
+    # Show progress bar while the model is running
+    withProgress(message = 'Analyzing image...', value = 0, {
+
+      incProgress(0.3, detail = "Running Grad-CAM")
+
+      # Call the Python function to process the image
+       source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script
+
+      # Call the Python function with the selected confidence threshold
+      results <- generate_gradcam(input$file$datapath, model, top_n=5, confidence_threshold=input$confidence)
+
+      print(paste("Results length:", length(results)))  # Checking the results length for debugging
+
+      if (length(results) == 0) {
+        showNotification("No predictions found above the confidence threshold.", type = "error")
+      } else {
+        incProgress(0.6, detail = "Rendering outputs")
+
+        # Update the original image every time a new file is uploaded
+        output$uploaded_image <- renderImage({
+          list(src = original_image_path, alt = "Uploaded Image", width = "400px", height = "400px")
+        }, deleteFile = FALSE)
+
+        # Dynamically render predictions and their Grad-CAM images in the Prediction Results tab
+        output$predicted_results <- renderUI({
+          lapply(1:length(results), function(i) {
+            result <- results[[i]]
+
+            # Prepare Grad-CAM image rendering using renderImage
+            output[[paste0("gradcam_output_", i)]] <- renderImage({
+              # Ensure the image file exists before serving it
+              if (file.exists(result$gradcam_img_path)) {
+                list(src = result$gradcam_img_path, height = "300px", width = "300px", alt = "Grad-CAM Output")
+              } else {
+                NULL  # Return NULL if the file doesn't exist
+              }
+            }, deleteFile = FALSE)
+
+            # Dynamically create UI elements for each prediction
+            tagList(
+              fluidRow(
+                column(6,
+                       h4(paste("Predicted Category:", result$label)),
+                       h5(paste("Confidence Score:", round(result$confidence * 100, 2), "%"))
+                ),
+                column(6,
+                       h4("Grad-CAM Output:"),
+                       # Output the image using imageOutput instead of img()
+                       imageOutput(paste0("gradcam_output_", i), height = "300px", width = "300px")
+                )
+              ),
+              hr()  # Add a horizontal line between predictions
+            )
+          })
+        })
+
+        incProgress(1, detail = "Complete!")
+      }
+    })
+  })
+}
+
+
+
+
+```
+
+# ```{r}
+# server <- function(input, output, session) {
+#   
+#   observeEvent(input$submit, {
+#     req(input$file)
+#     
+#     withProgress(message = 'Analyzing image...', value = 0, {
+#       
+#       incProgress(0.3, detail = "Running Grad-CAM with ResNet50")
+#       
+#       # Load the model in Python
+#       source_python("C:/Users/rodri/OneDrive - St. Lawrence University/STAT289/SYE/gradcam_script.py")  # Path to your Python script
+#       model <- load_model()  # Load the model and store it
+#       
+#       # Call the updated Python function and pass the model
+#       results <- generate_gradcam(input$file$datapath, model, top_n=5)
+#       
+#       if (length(results) == 0) {
+#         showNotification("No predictions found above the confidence threshold.", type = "error")
+#       } else {
+#         incProgress(0.6, detail = "Rendering outputs")
+#         
+#         output$uploaded_image <- renderImage({
+#           list(src = "www/original_resized.png", alt = "Uploaded Image", width = "400px", height = "400px")
+#         }, deleteFile = FALSE)
+#         
+#         output$predicted_results <- renderUI({
+#           lapply(1:length(results), function(i) {
+#             result <- results[[i]]
+#             
+#             output[[paste0("gradcam_output_", i)]] <- renderImage({
+#               if (file.exists(result$gradcam_img_path)) {
+#                 list(src = result$gradcam_img_path, height = "300px", width = "300px", alt = "Grad-CAM Output")
+#               } else {
+#                 NULL
+#               }
+#             }, deleteFile = FALSE)
+#             
+#             tagList(
+#               fluidRow(
+#                 column(6, 
+#                        h4(paste("Predicted Category:", result$label)),
+#                        h5(paste("Confidence Score:", round(result$confidence * 100, 2), "%"))
+#                 ),
+#                 column(6,
+#                        h4("Grad-CAM Output:"),
+#                        imageOutput(paste0("gradcam_output_", i), height = "300px", width = "300px")
+#                 )
+#               ),
+#               hr()
+#             )
+#           })
+#         })
+#         incProgress(1, detail = "Complete!")
+#       }
+#     })
+#   })
+# }
+# 
+#```
+
+
+```{r}
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+```
+
