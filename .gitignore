@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.so
+*.deb
+*.h5
+*.pkl
+*.zip
+*.tar.gz
+.DS_Store
+
