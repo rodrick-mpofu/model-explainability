@@ -1,53 +1,20 @@
----
-title: "Untitled"
-format: html
----
+# Main Shiny App for Model Explainability
+# This file serves as the entry point for the Shiny application
 
-```{r}
+# Load required libraries
 library(shiny)
 library(shinydashboard)
 library(reticulate)
 library(png)
 library(shinythemes)
 library(shinycssloaders)
-```
 
+# Source UI and server components
+source("src/shiny/ui.R")
+source("src/shiny/server.R")
 
-```{r}
-# Set Python path
-use_python("C:/Users/rodri/AppData/Local/Programs/Python/Python39/python.exe")
-```
-
-```{r}
-# Define UI
-ui <- fluidPage(
-  titlePanel("Object Recognition App"),
-  
-  sidebarLayout(
-    sidebarPanel(
-      # Upload input
-      fileInput("file", "Upload an Image", accept = c("image/png", "image/jpeg")),
-      
-      # Add a model selection input to the UI
-      selectInput("model_choice", "Choose a Model:",
-            choices = list("VGG16" = "vgg16", 
-                           "ResNet50" = "resnet50", 
-                           "MobileNetV2" = "mobilenet_v2",
-                           "EfficientNetB0" = "efficientnetb0",
-                           "EfficientNetB7" = "efficientnetb7")),
-      
-      # Confidence threshold slider
-      sliderInput("confidence", "Confidence Threshold", min = 0, max = 1, value = 0.5),
-      
-      # Action button for analysis
-      actionButton("submit", "Analyze Image", class = "btn-primary")
-    ),
-    
-    mainPanel(
-      # Use tabsetPanel to create two tabs: one for Original Image, one for Prediction Results
-      tabsetPanel(
-        # First tab for the original image
-        tabPanel("Original Image", 
+# Run the application
+shinyApp(ui = ui, server = server)
                  wellPanel(
                    h4("Original Image:"),
                    # Add spinner for loading status
