@@ -1,10 +1,81 @@
+# Virtual environments
 .venv/
+venv/
+env/
+ENV/
+
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# R
+.RData
+.Rhistory
+.Rproj.user/
+*.Rproj
+
+# Generated outputs
+outputs/
+www/gradcam_output_*.png
+www/shap_output_*.png
+www/original_resized.png
+shap_debug.log
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Binary files that shouldn't be in version control
 *.so
 *.deb
 *.h5
 *.pkl
 *.zip
 *.tar.gz
+*.jar
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Model files (typically too large for git)
+*.h5
+*.pkl
+*.joblib
+*.model
 

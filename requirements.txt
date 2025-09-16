@@ -1,0 +1,20 @@
+# Model Explainability Python Dependencies
+
+# Core ML/DL libraries
+tensorflow>=2.8.0
+numpy>=1.21.0
+opencv-python>=4.5.0
+
+# Explainability libraries  
+shap>=0.40.0
+
+# Image processing
+Pillow>=8.0.0
+matplotlib>=3.5.0
+
+# Utility libraries
+requests>=2.25.0
+
+# Development dependencies (optional)
+pytest>=6.0.0
+pytest-cov>=2.10.0

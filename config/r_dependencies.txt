@@ -1,0 +1,17 @@
+# R package dependencies for Shiny application
+
+# Core Shiny packages
+shiny
+shinydashboard
+shinythemes
+shinycssloaders
+
+# R-Python integration
+reticulate
+
+# Image processing
+png
+
+# Optional packages for enhanced functionality
+DT          # for data tables
+plotly      # for interactive plots
