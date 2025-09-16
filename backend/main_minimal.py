@@ -7,6 +7,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+import sys
 import tempfile
 import uuid
 from typing import List, Dict, Any
@@ -112,13 +113,25 @@ async def analyze_image(
                     output_dir="outputs"
                 )
                 
-                # Process results
+                # Process results and convert numpy types to Python types
                 processed_results = []
                 for result in results:
-                    if 'gradcam_img_path' in result:
-                        filename = os.path.basename(result['gradcam_img_path'])
-                        result['gradcam_img_url'] = f"/outputs/{filename}"
-                    processed_results.append(result)
+                    # Convert numpy types to Python types for JSON serialization
+                    processed_result = {}
+                    for key, value in result.items():
+                        if hasattr(value, 'item'):  # numpy scalar
+                            processed_result[key] = value.item()
+                        elif hasattr(value, 'tolist'):  # numpy array
+                            processed_result[key] = value.tolist()
+                        else:
+                            processed_result[key] = value
+                    
+                    # Convert file paths to URLs
+                    if 'gradcam_img_path' in processed_result:
+                        filename = os.path.basename(processed_result['gradcam_img_path'])
+                        processed_result['gradcam_img_url'] = f"/outputs/{filename}"
+                    
+                    processed_results.append(processed_result)
                 
                 mode = "real_ai"
                 

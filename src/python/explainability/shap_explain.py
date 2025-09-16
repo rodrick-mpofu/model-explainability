@@ -11,7 +11,15 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ..models.model_loader import get_imagenet_label
+# Handle relative imports
+try:
+    from ..models.model_loader import get_imagenet_label
+except ImportError:
+    # Fallback for direct execution
+    current_dir = os.path.dirname(os.path.dirname(__file__))
+    if current_dir not in sys.path:
+        sys.path.append(current_dir)
+    from models.model_loader import get_imagenet_label
 
 
 def generate_shap(img_path, model, preprocess, top_n=3, confidence_threshold=0.5, 

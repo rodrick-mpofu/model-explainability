@@ -14,11 +14,20 @@ try:
     from .explainability.gradcam import generate_gradcam
     from .explainability.shap_explain import generate_shap
 except ImportError:
-    # Fallback for direct execution
-    sys.path.append(os.path.dirname(__file__))
-    from models.model_loader import load_model
-    from explainability.gradcam import generate_gradcam
-    from explainability.shap_explain import generate_shap
+    # Fallback for direct execution - add current directory to path
+    current_dir = os.path.dirname(__file__)
+    if current_dir not in sys.path:
+        sys.path.append(current_dir)
+    
+    try:
+        from models.model_loader import load_model
+        from explainability.gradcam import generate_gradcam
+        from explainability.shap_explain import generate_shap
+    except ImportError as e:
+        print(f"❌ Failed to import AI modules: {e}")
+        print(f"📁 Current directory: {current_dir}")
+        print(f"📁 Python path: {sys.path}")
+        raise
 
 
 def explain_image(img_path, model_name="vgg16", technique="gradcam", top_n=3, 
