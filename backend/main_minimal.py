@@ -1,28 +1,15 @@
 """
-FastAPI backend for Model Explainability application.
-This wraps the existing Python explainability modules into a REST API.
+Minimal FastAPI backend for Model Explainability application.
+This version can start without AI dependencies for testing purposes.
 """
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
 import tempfile
 import uuid
 from typing import List, Dict, Any
-import sys
-
-# Add the src/python directory to the path so we can import our modules
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'python'))
-
-# Import the explainability API
-try:
-    from explainability_api import explain_image
-except ImportError:
-    # Fallback for direct execution
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from src.python.explainability_api import explain_image
 
 app = FastAPI(
     title="Model Explainability API",
@@ -43,14 +30,10 @@ app.add_middleware(
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("outputs", exist_ok=True)
 
-# Mount static files for serving generated images
-app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {"message": "Model Explainability API is running!", "version": "2.0.0"}
+    return {"message": "Model Explainability API is running!", "version": "2.0.0", "mode": "minimal"}
 
 @app.get("/models")
 async def get_available_models():
@@ -85,16 +68,7 @@ async def analyze_image(
 ):
     """
     Analyze an uploaded image and generate explanations.
-    
-    Args:
-        file: Uploaded image file
-        model_name: Name of the model to use
-        technique: Explanation technique ('gradcam' or 'shap')
-        confidence_threshold: Minimum confidence for predictions
-        top_n: Number of top predictions to return
-        
-    Returns:
-        Analysis results with predictions and explanation images
+    This is a mock implementation for testing the frontend.
     """
     try:
         # Validate file type
@@ -118,25 +92,24 @@ async def analyze_image(
         if confidence_threshold < 0 or confidence_threshold > 1:
             raise HTTPException(status_code=400, detail="Confidence threshold must be between 0 and 1")
         
-        # Generate explanations using existing Python modules
-        results = explain_image(
-            img_path=upload_path,
-            model_name=model_name,
-            technique=technique,
-            top_n=top_n,
-            confidence_threshold=confidence_threshold,
-            output_dir="outputs"
-        )
-        
-        # Process results to include web-accessible URLs
-        processed_results = []
-        for i, result in enumerate(results):
-            # Convert local file paths to web URLs
-            if 'gradcam_img_path' in result:
-                filename = os.path.basename(result['gradcam_img_path'])
-                result['gradcam_img_url'] = f"/outputs/{filename}"
-            
-            processed_results.append(result)
+        # Mock results for testing
+        mock_results = [
+            {
+                "label": "golden_retriever",
+                "confidence": 0.95,
+                "gradcam_img_url": "/outputs/mock_gradcam_1.png"
+            },
+            {
+                "label": "labrador_retriever", 
+                "confidence": 0.87,
+                "gradcam_img_url": "/outputs/mock_gradcam_2.png"
+            },
+            {
+                "label": "dog",
+                "confidence": 0.78,
+                "gradcam_img_url": "/outputs/mock_gradcam_3.png"
+            }
+        ]
         
         # Clean up uploaded file
         try:
@@ -146,13 +119,14 @@ async def analyze_image(
         
         return {
             "success": True,
-            "results": processed_results,
+            "results": mock_results,
             "metadata": {
                 "model_used": model_name,
                 "technique_used": technique,
                 "confidence_threshold": confidence_threshold,
-                "total_predictions": len(processed_results)
-            }
+                "total_predictions": len(mock_results)
+            },
+            "note": "This is a mock response for testing. AI models not loaded."
         }
         
     except FileNotFoundError as e:
@@ -168,11 +142,13 @@ async def health_check():
     return {
         "status": "healthy",
         "version": "2.0.0",
+        "mode": "minimal",
         "endpoints": {
             "analyze": "/analyze",
-            "models": "/models",
+            "models": "/models", 
             "techniques": "/techniques"
-        }
+        },
+        "note": "Running in minimal mode without AI dependencies"
     }
 
 if __name__ == "__main__":

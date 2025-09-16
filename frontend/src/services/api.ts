@@ -22,7 +22,7 @@ export const apiService = {
   },
 
   // Analyze image
-  async analyzeImage(file: File, request: AnalysisRequest): Promise<AnalysisResponse> {
+  async analyzeImage({ file, request }: { file: File; request: AnalysisRequest }): Promise<AnalysisResponse> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('model_name', request.modelName);
@@ -30,13 +30,28 @@ export const apiService = {
     formData.append('confidence_threshold', request.confidenceThreshold.toString());
     formData.append('top_n', request.topN.toString());
 
-    const response = await api.post('/analyze', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    console.log('Sending analysis request:', {
+      fileName: file.name,
+      fileSize: file.size,
+      modelName: request.modelName,
+      technique: request.technique,
+      confidenceThreshold: request.confidenceThreshold,
+      topN: request.topN
     });
 
-    return response.data;
+    try {
+      const response = await api.post('/analyze', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Analysis response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Analysis error:', error);
+      throw error;
+    }
   },
 
   // Health check

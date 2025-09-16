@@ -23,20 +23,37 @@ const MainApp: React.FC = () => {
   // Fetch available models and techniques
   const { data: models = [] } = useQuery<Model[]>('models', apiService.getModels);
   const { data: techniques = [] } = useQuery<Technique[]>('techniques', apiService.getTechniques);
+  
+  // Health check
+  const { data: healthStatus } = useQuery('health', apiService.healthCheck, {
+    onError: (error) => {
+      console.error('API Health check failed:', error);
+    }
+  });
 
   // Analysis mutation
   const analysisMutation = useMutation(apiService.analyzeImage, {
     onSuccess: (data: AnalysisResponse) => {
+      console.log('Analysis successful:', data);
       setResults(data.results);
       setActiveTab('results');
     },
     onError: (error: any) => {
       console.error('Analysis failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status,
+        data: error.response?.data
+      });
     },
   });
 
   const handleAnalyze = () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      console.error('No file selected');
+      return;
+    }
 
     const request: AnalysisRequest = {
       modelName: selectedModel,
@@ -45,7 +62,14 @@ const MainApp: React.FC = () => {
       topN: 5
     };
 
-    analysisMutation.mutate(selectedFile.file, request);
+    console.log('Starting analysis with:', {
+      file: selectedFile.file,
+      fileName: selectedFile.file.name,
+      fileSize: selectedFile.file.size,
+      request
+    });
+
+    analysisMutation.mutate({ file: selectedFile.file, request });
   };
 
   const handleFileSelect = (file: UploadedFile | null) => {
@@ -66,10 +90,17 @@ const MainApp: React.FC = () => {
               <p className="text-sm text-gray-600">TypeScript Version v2.0.0</p>
             </div>
             <div className="flex space-x-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                API Connected
-              </span>
+              {healthStatus ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  API Connected ({healthStatus.mode})
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Connecting...
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -155,8 +186,22 @@ const MainApp: React.FC = () => {
                     <div>
                       <h3 className="text-sm font-medium text-red-800">Analysis Failed</h3>
                       <p className="text-sm text-red-700 mt-1">
-                        {analysisMutation.error?.response?.data?.detail || 'An unexpected error occurred'}
+                        {analysisMutation.error?.response?.data?.detail || 
+                         analysisMutation.error?.message || 
+                         'An unexpected error occurred'}
                       </p>
+                      {process.env.NODE_ENV === 'development' && analysisMutation.error && (
+                        <details className="mt-2 text-xs text-red-600">
+                          <summary className="cursor-pointer">Debug Info</summary>
+                          <pre className="mt-1 p-2 bg-red-100 rounded text-xs overflow-auto">
+                            {JSON.stringify({
+                              status: analysisMutation.error?.response?.status,
+                              data: analysisMutation.error?.response?.data,
+                              message: analysisMutation.error?.message
+                            }, null, 2)}
+                          </pre>
+                        </details>
+                      )}
                     </div>
                   </div>
                 </div>

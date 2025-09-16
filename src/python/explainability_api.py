@@ -6,9 +6,19 @@ using different techniques (Grad-CAM, SHAP) with various models.
 """
 
 import os
-from .models.model_loader import load_model
-from .explainability.gradcam import generate_gradcam
-from .explainability.shap_explain import generate_shap
+import sys
+
+# Handle both relative and absolute imports
+try:
+    from .models.model_loader import load_model
+    from .explainability.gradcam import generate_gradcam
+    from .explainability.shap_explain import generate_shap
+except ImportError:
+    # Fallback for direct execution
+    sys.path.append(os.path.dirname(__file__))
+    from models.model_loader import load_model
+    from explainability.gradcam import generate_gradcam
+    from explainability.shap_explain import generate_shap
 
 
 def explain_image(img_path, model_name="vgg16", technique="gradcam", top_n=3, 
