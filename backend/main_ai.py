@@ -1,15 +1,31 @@
 """
-Minimal FastAPI backend for Model Explainability application.
-This version can start without AI dependencies for testing purposes.
+FastAPI backend for Model Explainability application with real AI functionality.
+This version uses the actual Python AI modules for model predictions and explanations.
 """
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
 import tempfile
 import uuid
 from typing import List, Dict, Any
+import sys
+import traceback
+
+# Add the src/python directory to the path so we can import our modules
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'python'))
+
+# Try to import AI modules, fall back to mock if not available
+try:
+    from explainability_api import explain_image
+    AI_AVAILABLE = True
+    print("✅ AI modules loaded successfully")
+except ImportError as e:
+    print(f"⚠️  AI modules not available: {e}")
+    AI_AVAILABLE = False
+    explain_image = None
 
 app = FastAPI(
     title="Model Explainability API",
@@ -30,10 +46,18 @@ app.add_middleware(
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("outputs", exist_ok=True)
 
+# Mount static files for serving generated images
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {"message": "Model Explainability API is running!", "version": "2.0.0", "mode": "minimal"}
+    return {
+        "message": "Model Explainability API is running!", 
+        "version": "2.0.0",
+        "ai_available": AI_AVAILABLE
+    }
 
 @app.get("/models")
 async def get_available_models():
@@ -58,6 +82,31 @@ async def get_available_techniques():
         ]
     }
 
+def generate_mock_results(model_name, technique, confidence_threshold):
+    """Generate mock results for testing"""
+    mock_results = [
+        {
+            "label": "golden_retriever",
+            "confidence": 0.95,
+            "gradcam_img_url": "/outputs/mock_gradcam_1.png"
+        },
+        {
+            "label": "labrador_retriever", 
+            "confidence": 0.87,
+            "gradcam_img_url": "/outputs/mock_gradcam_2.png"
+        },
+        {
+            "label": "dog",
+            "confidence": 0.78,
+            "gradcam_img_url": "/outputs/mock_gradcam_3.png"
+        }
+    ]
+    
+    # Filter by confidence threshold
+    filtered_results = [r for r in mock_results if r["confidence"] >= confidence_threshold]
+    
+    return filtered_results
+
 @app.post("/analyze")
 async def analyze_image(
     file: UploadFile = File(...),
@@ -68,7 +117,7 @@ async def analyze_image(
 ):
     """
     Analyze an uploaded image and generate explanations.
-    This is a mock implementation for testing the frontend.
+    Uses real AI models if available, otherwise falls back to mock data.
     """
     try:
         # Validate file type
@@ -92,17 +141,12 @@ async def analyze_image(
         if confidence_threshold < 0 or confidence_threshold > 1:
             raise HTTPException(status_code=400, detail="Confidence threshold must be between 0 and 1")
         
-        # Check if we should use real AI
-        use_real_ai = os.environ.get("USE_REAL_AI", "false").lower() == "true"
-        
-        if use_real_ai:
-            # Try to use real AI
+        # Generate explanations
+        if AI_AVAILABLE and explain_image:
             try:
-                print(f"🤖 Attempting real AI analysis with {model_name} and {technique}")
-                # Import and use real AI modules
-                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'python'))
-                from explainability_api import explain_image
+                print(f"🤖 Using real AI models for {technique} analysis with {model_name}")
                 
+                # Use real AI modules
                 results = explain_image(
                     img_path=upload_path,
                     model_name=model_name,
@@ -112,57 +156,29 @@ async def analyze_image(
                     output_dir="outputs"
                 )
                 
-                # Process results
+                # Process results to include web-accessible URLs
                 processed_results = []
-                for result in results:
+                for i, result in enumerate(results):
+                    # Convert local file paths to web URLs
                     if 'gradcam_img_path' in result:
                         filename = os.path.basename(result['gradcam_img_path'])
                         result['gradcam_img_url'] = f"/outputs/{filename}"
+                    
                     processed_results.append(result)
                 
                 mode = "real_ai"
                 
             except Exception as e:
-                print(f"❌ Real AI failed: {e}")
+                print(f"❌ AI analysis failed: {e}")
+                print(f"📝 Traceback: {traceback.format_exc()}")
                 print("🔄 Falling back to mock results")
-                # Fall back to mock
-                processed_results = [
-                    {
-                        "label": "golden_retriever",
-                        "confidence": 0.95,
-                        "gradcam_img_url": "/outputs/mock_gradcam_1.png"
-                    },
-                    {
-                        "label": "labrador_retriever", 
-                        "confidence": 0.87,
-                        "gradcam_img_url": "/outputs/mock_gradcam_2.png"
-                    },
-                    {
-                        "label": "dog",
-                        "confidence": 0.78,
-                        "gradcam_img_url": "/outputs/mock_gradcam_3.png"
-                    }
-                ]
+                
+                # Fall back to mock results
+                processed_results = generate_mock_results(model_name, technique, confidence_threshold)
                 mode = "fallback_mock"
         else:
-            # Use mock results
-            processed_results = [
-                {
-                    "label": "golden_retriever",
-                    "confidence": 0.95,
-                    "gradcam_img_url": "/outputs/mock_gradcam_1.png"
-                },
-                {
-                    "label": "labrador_retriever", 
-                    "confidence": 0.87,
-                    "gradcam_img_url": "/outputs/mock_gradcam_2.png"
-                },
-                {
-                    "label": "dog",
-                    "confidence": 0.78,
-                    "gradcam_img_url": "/outputs/mock_gradcam_3.png"
-                }
-            ]
+            print(f"🎭 Using mock results (AI not available)")
+            processed_results = generate_mock_results(model_name, technique, confidence_threshold)
             mode = "mock"
         
         # Clean up uploaded file
@@ -179,9 +195,9 @@ async def analyze_image(
                 "technique_used": technique,
                 "confidence_threshold": confidence_threshold,
                 "total_predictions": len(processed_results),
-                "mode": mode
-            },
-            "note": f"Running in {mode} mode. {'Real AI models used!' if mode == 'real_ai' else 'Mock data for testing.'}"
+                "mode": mode,
+                "ai_available": AI_AVAILABLE
+            }
         }
         
     except FileNotFoundError as e:
@@ -189,27 +205,28 @@ async def analyze_image(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        print(f"📝 Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
-    use_real_ai = os.environ.get("USE_REAL_AI", "false").lower() == "true"
-    mode = "hybrid" if use_real_ai else "minimal"
-    
     return {
         "status": "healthy",
         "version": "2.0.0",
-        "mode": mode,
-        "ai_enabled": use_real_ai,
+        "ai_available": AI_AVAILABLE,
+        "mode": "real_ai" if AI_AVAILABLE else "mock",
         "endpoints": {
             "analyze": "/analyze",
-            "models": "/models", 
+            "models": "/models",
             "techniques": "/techniques"
         },
-        "note": f"Running in {mode} mode. {'Real AI available via USE_REAL_AI=true' if use_real_ai else 'Mock data only. Set USE_REAL_AI=true to enable AI.'}"
+        "note": "Real AI models loaded" if AI_AVAILABLE else "Using mock data - AI models not available"
     }
 
 if __name__ == "__main__":
     import uvicorn
+    print(f"🚀 Starting Model Explainability API...")
+    print(f"🤖 AI Available: {AI_AVAILABLE}")
     uvicorn.run(app, host="0.0.0.0", port=8000)

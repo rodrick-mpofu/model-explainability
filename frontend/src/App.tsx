@@ -236,6 +236,7 @@ const MainApp: React.FC = () => {
             results={results}
             technique={selectedTechnique}
             isLoading={analysisMutation.isLoading}
+            metadata={analysisMutation.data?.metadata}
           />
         )}
 
