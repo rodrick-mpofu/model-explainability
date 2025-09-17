@@ -81,7 +81,23 @@ def load_model(model_name):
         raise ValueError(f"Unsupported model type: {model_name}")
     
     config = model_configs[model_name]
-    model = config["model_class"](weights='imagenet')
+    
+    # Handle EfficientNet models with TF 2.20.0 compatibility issues
+    if model_name.startswith('efficientnet'):
+        raise ValueError(
+            f"EfficientNet models are temporarily unavailable due to TensorFlow 2.20.0 compatibility issues. "
+            f"Please use VGG16, ResNet50, or MobileNetV2 instead. "
+            f"Error: Shape mismatch in EfficientNet weights. "
+            f"This is a known issue with TensorFlow 2.20.0 + Keras 3.11.3."
+        )
+    
+    # Load other models normally
+    try:
+        model = config["model_class"](weights='imagenet')
+    except Exception as e:
+        print(f"⚠️  Failed to load {model_name} with weights: {e}")
+        print(f"🔄 Loading {model_name} without pre-trained weights...")
+        model = config["model_class"](weights=None)
     
     return (
         model,

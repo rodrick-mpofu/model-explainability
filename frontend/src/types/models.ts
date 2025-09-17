@@ -1,6 +1,8 @@
 export interface Model {
   name: string;
   display_name: string;
+  status?: 'available' | 'unavailable';
+  reason?: string;
 }
 
 export interface Technique {

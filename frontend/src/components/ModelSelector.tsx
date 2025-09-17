@@ -59,13 +59,22 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           className="input-field"
         >
           {models.map((model) => (
-            <option key={model.name} value={model.name}>
-              {model.display_name}
+            <option 
+              key={model.name} 
+              value={model.name}
+              disabled={model.status === 'unavailable'}
+            >
+              {model.display_name} {model.status === 'unavailable' ? '(Unavailable)' : ''}
             </option>
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
           Choose a pre-trained model for analysis
+          {models.some(m => m.status === 'unavailable') && (
+            <span className="block text-amber-600 mt-1">
+              ⚠️ Some models are unavailable due to compatibility issues
+            </span>
+          )}
         </p>
       </div>
     </div>

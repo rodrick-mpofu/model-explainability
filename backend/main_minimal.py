@@ -41,11 +41,11 @@ async def get_available_models():
     """Get list of available models"""
     return {
         "models": [
-            {"name": "vgg16", "display_name": "VGG16"},
-            {"name": "resnet50", "display_name": "ResNet50"},
-            {"name": "mobilenet_v2", "display_name": "MobileNetV2"},
-            {"name": "efficientnetb0", "display_name": "EfficientNetB0"},
-            {"name": "efficientnetb7", "display_name": "EfficientNetB7"}
+            {"name": "vgg16", "display_name": "VGG16", "status": "available"},
+            {"name": "resnet50", "display_name": "ResNet50", "status": "available"},
+            {"name": "mobilenet_v2", "display_name": "MobileNetV2", "status": "available"},
+            {"name": "efficientnetb0", "display_name": "EfficientNetB0", "status": "unavailable", "reason": "TensorFlow 2.20.0 compatibility issue"},
+            {"name": "efficientnetb7", "display_name": "EfficientNetB7", "status": "unavailable", "reason": "TensorFlow 2.20.0 compatibility issue"}
         ]
     }
 
